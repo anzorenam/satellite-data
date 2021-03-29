@@ -1,63 +1,76 @@
 #!/usr/bin/env python3.7
 # -*- coding: utf8 -*-
 
-import matplotlib as mat
-import matplotlib.pyplot as plt
+import matplotlib.dates as mdates
+import numpy as np
 import gbm.data as gdata
 import gbm.time as gtime
-import astropy.io.fits as fits
-
-import time
+import gbm.binning.binned as gbin
 import datetime
-import seaborn as sns
 
-sns.set(rc={"figure.figsize":(8,4)})
-sns.set_context('paper',font_scale=1.5,rc={'lines.linewidth':1.5})
-sns.set_style('ticks')
-plt.rc('text',usetex=True)
-plt.rc('text.latex',preamble=r'\usepackage[utf8]{inputenc} \usepackage[T1]{fontenc} \usepackage[spanish]{babel} \usepackage{amsmath,amsfonts,amssymb} \usepackage{siunitx}')
+day=6
+if day==4:
+  tstart=datetime.datetime(2017,9,4,0,0)
+  te0=datetime.datetime(2017,9,4,17,30)
+  te1=datetime.datetime(2017,9,4,23,30)
+  tmf0=datetime.datetime(2017,9,4,20,32)
+elif day==5:
+  tstart=datetime.datetime(2017,9,5,0,0)
+  te0=datetime.datetime(2017,9,5,14,30)
+  te1=datetime.datetime(2017,9,5,20,30)
+  tmf0=datetime.datetime(2017,9,5,17,42)
+elif day==6:
+  tstart=datetime.datetime(2017,9,6,0,0)
+  te0=datetime.datetime(2017,9,6,12,50)
+  te1=datetime.datetime(2017,9,6,18,50)
+  tmf0=datetime.datetime(2017,9,6,15,52)
 
-tstart=datetime.datetime(2017,9,6,0,0)
-t0=datetime.datetime(2017,9,6,11,00)
-t1=datetime.datetime(2017,9,6,16,00)
-te0=datetime.datetime(2017,9,6,15,36)
-te1=datetime.datetime(2017,9,6,16,36)
-tmf0=datetime.datetime(2017,9,6,15,52)
-tmf1=datetime.datetime(2017,9,6,12,2)
+dname='2017_09_0{0}/glg_cspec_'.format(day)
+home='/run/media/cosmicray/PHOTON/backup-210315/proyectos/scicrt'
+tbin=32.762
+nuclear=False
+b0=gdata.Cspec.open('{0}b0_17090{1}_v00.pha'.format(dname,day))
+b1=gdata.Cspec.open('{0}b1_17090{1}_v00.pha'.format(dname,day))
+n1=gdata.Cspec.open('{0}n1_17090{1}_v00.pha'.format(dname,day))
+n3=gdata.Cspec.open('{0}n3_17090{1}_v00.pha'.format(dname,day))
+n5=gdata.Cspec.open('{0}n5_17090{1}_v00.pha'.format(dname,day))
+n9=gdata.Cspec.open('{0}n9_17090{1}_v00.pha'.format(dname,day))
+na=gdata.Cspec.open('{0}na_17090{1}_v00.pha'.format(dname,day))
+nb=gdata.Cspec.open('{0}nb_17090{1}_v00.pha'.format(dname,day))
 
-b0=gdata.Cspec.open('2017_09_06/glg_cspec_b0_170906_v00.pha')
-b1=gdata.Cspec.open('2017_09_06/glg_cspec_b1_170906_v00.pha')
-n0=gdata.Cspec.open('2017_09_06/glg_cspec_n0_170906_v00.pha')
-n1=gdata.Cspec.open('2017_09_06/glg_cspec_n1_170906_v00.pha')
-n2=gdata.Cspec.open('2017_09_06/glg_cspec_n2_170906_v00.pha')
-n3=gdata.Cspec.open('2017_09_06/glg_cspec_n3_170906_v00.pha')
-n4=gdata.Cspec.open('2017_09_06/glg_cspec_n4_170906_v00.pha')
-n5=gdata.Cspec.open('2017_09_06/glg_cspec_n5_170906_v00.pha')
-n6=gdata.Cspec.open('2017_09_06/glg_cspec_n6_170906_v00.pha')
-n7=gdata.Cspec.open('2017_09_06/glg_cspec_n7_170906_v00.pha')
-n8=gdata.Cspec.open('2017_09_06/glg_cspec_n8_170906_v00.pha')
-n9=gdata.Cspec.open('2017_09_06/glg_cspec_n9_170906_v00.pha')
-na=gdata.Cspec.open('2017_09_06/glg_cspec_na_170906_v00.pha')
-nb=gdata.Cspec.open('2017_09_06/glg_cspec_nb_170906_v00.pha')
-gamma_sun=gdata.GbmDetectorCollection.from_list([n0,n1,n3])
-gamma_asn=gdata.GbmDetectorCollection.from_list([n6,n7,n9])
-T0,T1,Tm=gtime.Met.from_datetime(t0),gtime.Met.from_datetime(t1),gtime.Met.from_datetime(tmf1)
+T0,T1,Tm=gtime.Met.from_datetime(te0),gtime.Met.from_datetime(te1),gtime.Met.from_datetime(tmf0)
 src_range=(T0.met,T1.met)
 
-gspecs=gamma_sun.to_spectrum(time_range=src_range)
-gapecs=gamma_asn.to_spectrum(time_range=src_range)
-ltimes=gamma_asn.to_lightcurve(time_range=src_range)
-fig,ax=plt.subplots(nrows=1,ncols=1,sharex=False,sharey=False)
-for ltime in ltimes:
-  ax.plot(ltime.centroids,ltime.rates,ds='steps-mid')
-ax.axvline(x=Tm.met)
-sun_spec=gspecs[0].rates+gspecs[1].rates+gspecs[2].rates
-asn_spec=gapecs[0].rates+gapecs[1].rates+gapecs[2].rates
-fig,ax=plt.subplots(nrows=1,ncols=1,sharex=False,sharey=False)
-ax.loglog((1.0/1000.0)*gspecs[0].centroids,sun_spec,ds='steps-mid')
-ax.loglog((1.0/1000.0)*gspecs[0].centroids,asn_spec,ds='steps-mid')
-plt.xlabel(r'Energy $\left(\si{\mega\electronvolt}\right)$',x=0.9,ha='right')
-plt.ylabel(r'$\log_{10}\left(\si{Counts}\right)$')
-plt.tight_layout(pad=1.0)
-#plt.savefig('gammas_low_170906.pdf')
-plt.show()
+rebin_n1=n1.rebin_time(gbin.rebin_by_time,tbin)
+rebin_n3=n3.rebin_time(gbin.rebin_by_time,tbin)
+rebin_n5=n5.rebin_time(gbin.rebin_by_time,tbin)
+rebin_n9=n9.rebin_time(gbin.rebin_by_time,tbin)
+rebin_na=na.rebin_time(gbin.rebin_by_time,tbin)
+rebin_nb=nb.rebin_time(gbin.rebin_by_time,tbin)
+rebin_b0=b0.rebin_time(gbin.rebin_by_time,tbin)
+rebin_b1=b1.rebin_time(gbin.rebin_by_time,tbin)
+
+gamma_sun=gdata.GbmDetectorCollection.from_list([rebin_n1,rebin_n3,rebin_n5])
+gamma_asn=gdata.GbmDetectorCollection.from_list([rebin_n9,rebin_na,rebin_nb])
+gamma_high=gdata.GbmDetectorCollection.from_list([rebin_b0,rebin_b1])
+lgsun=gamma_sun.to_lightcurve(time_range=src_range,energy_range=(50.0,300.0))
+lgasn=gamma_asn.to_lightcurve(time_range=src_range,energy_range=(50.0,300.0))
+lhigh=gamma_high.to_lightcurve(time_range=src_range,energy_range=(2000.0,6000.0))
+
+if nuclear==False:
+  gamma=(lgsun[0].rates+lgsun[1].rates+lgsun[2].rates)-(lgasn[0].rates+lgasn[1].rates+lgasn[2].rates)
+  times=np.array([(gtime.Met(t)).datetime for t in lgsun[0].centroids])
+  name='{0}/data-analysis/event/gamma-event/hxray-1709{1:02d}.dat'.format(home,day)
+else:
+  gamma=lhigh[0].rates-lhigh[1].rates
+  times=np.array([(gtime.Met(t)).datetime for t in lhigh[0].centroids])
+  name='{0}/data-analysis/event/gamma-event/ngray-17090{1:02d}.dat'.format(home,day)
+
+times=mdates.date2num(times)
+gamma=gamma-np.amin(gamma)
+gamma=gamma/np.amax(gamma)
+fdat=open(name,'w')
+np.savetxt(fdat,times,newline=' ')
+fdat.write('\n')
+np.savetxt(fdat,gamma,newline=' ')
+fdat.close()
